@@ -145,12 +145,12 @@ bool AudioPlayer::checkALError() {
 		default:
 			pMsg = "unknown error";
 		}
-		E_LOG("alGetError:{}", pMsg);
+		printf("alGetError:{%s}", pMsg);
 	}
 	return loopCnt != 0;
 }
 
-AudioPlayer::~MediaPlayer() {
+AudioPlayer::~AudioPlayer() {
 	if (playerContext != nullptr) {
 		alDeleteSources(1, &playerSource);
 		playerSource = 0;

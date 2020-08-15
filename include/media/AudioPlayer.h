@@ -19,8 +19,6 @@ using std::cout;
 using std::endl;
 using std::string;
 using std::list;
-using std::mutex;
-using std::unique_lock;
 
 #define DECODE_DATA_SIZE 8192
 #define MAX_CACHE 5
@@ -30,12 +28,11 @@ public:
 	void workData(uint8_t *data, int len);
 	//void play(uint8_t *data, int len, bool useSsrc, uint32_t ssrc, uint32_t timeStamp);
 	//void setDecoder(MediaDecoder *_decoder);
-	MediaPlayer(string playerName = "", int pFreq = 22050, std::mutex * mutex = nullptr);
-	~MediaPlayer();
+	AudioPlayer(string playerName = "", int pFreq = 22050);
+	~AudioPlayer();
 
 private:
 
-	std::mutex *mediaMutex = nullptr;
 
 	string playerDeviceName;
 	ALCcontext *playerContext;
