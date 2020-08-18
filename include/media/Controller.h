@@ -31,7 +31,7 @@ using std::condition_variable;
 using std::unique_lock;
 using std::deque;
 
-#define MAX_AUDIO_FRAME_SIZE 8192
+#define MAX_AUDIO_FRAME_SIZE 192000
 
 class Controller
 {
@@ -70,5 +70,10 @@ private:
 	int						videoTime;
 	int						audioTime;
 	bool					faster = false;
+	uint64_t out_chn_layout = AV_CH_LAYOUT_STEREO;  //通道布局 输出双声道
+	enum AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16; //声音格式
+	int out_sample_rate = 44100;   //采样率
+	int width = 640;
+	int height = 480;
 };
 

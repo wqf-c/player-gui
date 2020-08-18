@@ -40,12 +40,12 @@ AudioPlayer::AudioPlayer(string playerName, int pFreq) {
 
 
 void AudioPlayer::workData(uint8_t *data, int len) {
-
 	recycle();
 	if (data != nullptr && !playerBufferQueue.empty()) {
 		ALuint buffer = playerBufferQueue.front();
 		playerBufferQueue.pop_front();
-		alBufferData(buffer, 2, data, len, freq);
+		//第二个参数！！！
+		alBufferData(buffer, AL_FORMAT_STEREO16, data, len, freq);
 		alSourceQueueBuffers(playerSource, 1, &buffer);
 		bufferIndex = 0;
 	}

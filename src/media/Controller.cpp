@@ -3,9 +3,15 @@
 Controller::Controller()
 {
 	avdevice_register_all();
+	 
 }
 
 void Controller::start(string fileName) {
+	out_chn_layout = AV_CH_LAYOUT_STEREO;  //通道布局 输出双声道
+	out_sample_fmt = AV_SAMPLE_FMT_S16; //声音格式
+	out_sample_rate = 44100;   //采样率
+	width = 640;
+	height = 480;
 	unique_lock<mutex> locker{ mux };
 	stopFlag = false;
 	for (auto iter = videoQue.begin(); iter != videoQue.end(); ++iter) {
@@ -22,7 +28,7 @@ void Controller::start(string fileName) {
 	if (pFormatCtx != NULL) {
 		avformat_free_context(pFormatCtx);
 	}
-	/*if (audio_convert_ctx != NULL) {
+	if (audio_convert_ctx != NULL) {
 		swr_free(&audio_convert_ctx);
 		audio_convert_ctx = NULL;
 	}
@@ -30,7 +36,7 @@ void Controller::start(string fileName) {
 		sws_freeContext(img_convert_ctx);
 		img_convert_ctx = NULL;
 
-	}*/
+	}
 
 	pFormatCtx = avformat_alloc_context();
 	if (avformat_open_input(&pFormatCtx, fileName.c_str(), NULL, NULL) != 0) {
@@ -57,14 +63,15 @@ void Controller::start(string fileName) {
 		printf("not find video or audio index\n");
 		return;
 	}
+	out_sample_rate = audioStream->codecpar->sample_rate;
 	
 	videoDecoder.setCodec(videoStream->codecpar);
 	audioDecoder.setCodec(audioStream->codecpar);
 	audio_convert_ctx = swr_alloc();
-	audio_convert_ctx = swr_alloc_set_opts(NULL,
-		AV_CH_LAYOUT_STEREO,                            
-		AV_SAMPLE_FMT_S16,                                        
-		audioStream->codecpar->sample_rate,
+	audio_convert_ctx = swr_alloc_set_opts(audio_convert_ctx,
+		out_chn_layout,
+		out_sample_fmt,
+		out_sample_rate,
 		audioDecoder.getChannelLayout(),                                
 		audioDecoder.getSampleFmt(),              
 		audioDecoder.getSampleRate(),             
@@ -78,21 +85,22 @@ void Controller::start(string fileName) {
 	else {
 		printf("swr_init success\n");
 	}
+
 	if (out_buffer != NULL) {
 		av_free(out_buffer);
 		out_buffer = NULL;
 	}
-	out_buffer = (uint8_t *)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, 640, 480, 32) * sizeof(uint8_t));
+	out_buffer = (uint8_t *)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, width, height, 32) * sizeof(uint8_t));
 	img_convert_ctx = sws_getContext(videoDecoder.getWidth(), videoDecoder.getHeight(),
-		videoDecoder.getPixFmt() , 640, 480, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
+		videoDecoder.getPixFmt() , width, height, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
 	if (audioPlayer != NULL) {
 		delete audioPlayer;
 	}
-	audioPlayer = new AudioPlayer("", audioStream->codecpar->sample_rate);
+	audioPlayer = new AudioPlayer("", out_sample_rate);
 	thread grab{ &Controller::grabPkt, this };
 	thread video{ &Controller::videoThreadFunc, this };
-//	thread audio{ &Controller::audioThreadFunc, this };
-	//audio.detach();
+	thread audio{ &Controller::audioThreadFunc, this };
+	audio.detach();
 	grab.detach();
 	video.detach();
 	
@@ -148,10 +156,10 @@ void Controller::videoThreadFunc() {
 				}
 				AVFrame *frameRGB = av_frame_alloc();
 				av_image_fill_arrays(frameRGB->data, frameRGB->linesize, out_buffer,
-					AV_PIX_FMT_RGB24, 640, 480, 32);
+					AV_PIX_FMT_RGB24, width, height, 32);
 				frameRGB->format = AV_PIX_FMT_RGB24;
-				frameRGB->width = 640;
-				frameRGB->height = 480;
+				frameRGB->width = width;
+				frameRGB->height = height;
 				sws_scale(img_convert_ctx, (const uint8_t* const*)inputFrame->data,
 					inputFrame->linesize, 0, videoDecoder.getHeight(), frameRGB->data, frameRGB->linesize);
 				av_frame_free(&inputFrame);
@@ -180,8 +188,12 @@ void Controller::videoThreadFunc() {
 void Controller::audioThreadFunc() {
 	vector<AVFrame *> vec{};
 	int sleep = 40;
+	out_sample_rate = audioStream->codecpar->sample_rate;
+	int i = 0;
+	uint8_t *audio_buf = (uint8_t *)malloc(MAX_AUDIO_FRAME_SIZE * sizeof(uint8_t));
 	while (!stopFlag)
 	{
+		
 		Sleep(sleep);
 		unique_lock<mutex> lock{ mux };
 		if (audioQue.size() >= 3) {
@@ -189,17 +201,19 @@ void Controller::audioThreadFunc() {
 			audioQue.pop_front();
 			lock.unlock();
 			cond.notify_one();
+			i++;
+			if (i < 10) continue;
+			
 			AVFrame *inputFrame = audioDecoder.decode( pkt);
 			
 			if (inputFrame != NULL) {
-				uint8_t audio_buf[MAX_AUDIO_FRAME_SIZE*10];
-				memset(audio_buf, 0, MAX_AUDIO_FRAME_SIZE * 10);
-				sleep = inputFrame->nb_samples * 1000 / audioStream->codecpar->sample_rate;
+				memset(audio_buf, 0, MAX_AUDIO_FRAME_SIZE);
+				sleep = (inputFrame->nb_samples * 1000) / out_sample_rate;
 				audioTime = inputFrame->pts * av_q2d(audioStream->time_base) * 1000;
-				int outSamples = swr_convert(audio_convert_ctx, (uint8_t**)&audio_buf, MAX_AUDIO_FRAME_SIZE*10,
-					(const uint8_t**)inputFrame->extended_data, inputFrame->nb_samples);
+				int outSamples = swr_convert(audio_convert_ctx, (uint8_t**)&audio_buf, MAX_AUDIO_FRAME_SIZE,
+					(const uint8_t**)&inputFrame->data[0], inputFrame->nb_samples);
 				int outDataSize = 
-					av_samples_get_buffer_size(NULL, audioStream->codecpar->channels, outSamples, AV_SAMPLE_FMT_S16, 1);
+					av_samples_get_buffer_size(NULL, 2, outSamples, out_sample_fmt, 1);
 				audioPlayer->workData(audio_buf, outDataSize);
 				av_frame_free(&inputFrame);
 			}
@@ -212,6 +226,7 @@ void Controller::audioThreadFunc() {
 			lock.unlock();
 		}
 	}
+	free(audio_buf);
 }
 
 void Controller::setStopFlag(bool flag) {
