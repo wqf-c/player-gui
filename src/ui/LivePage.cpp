@@ -20,7 +20,7 @@ LivePage::LivePage( wxWindow* parent, wxWindowID id, const wxString& title, cons
 	wxBoxSizer* bSizer2;
 	bSizer2 = new wxBoxSizer( wxHORIZONTAL );
 
-	videoPanel = new wxPanel( m_panel1, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	videoPanel = new wxPanel( m_panel1, wxID_ANY, wxDefaultPosition, wxSize(640, 480), wxTAB_TRAVERSAL );
 	videoPanel->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
 
 	bSizer2->Add( videoPanel, 2, wxEXPAND | wxALL, 5 );
@@ -66,6 +66,7 @@ LivePage::LivePage( wxWindow* parent, wxWindowID id, const wxString& title, cons
 	// Connect Events
 	videoList->Connect( wxEVT_COMMAND_LIST_ITEM_SELECTED, wxListEventHandler( LivePage::videoSelect ), NULL, this );
 	chooseFolderBtn->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( LivePage::chooseFolder ), NULL, this );
+	videoPanel->Connect(wxEVT_PAINT, wxPaintEventHandler(LivePage::paintEvent), NULL, this);
 }
 
 LivePage::~LivePage()
@@ -73,5 +74,5 @@ LivePage::~LivePage()
 	// Disconnect Events
 	videoList->Disconnect( wxEVT_COMMAND_LIST_ITEM_SELECTED, wxListEventHandler( LivePage::videoSelect ), NULL, this );
 	chooseFolderBtn->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( LivePage::chooseFolder ), NULL, this );
-
+	videoPanel->Disconnect(wxEVT_PAINT, wxPaintEventHandler(LivePage::paintEvent), NULL, this);
 }

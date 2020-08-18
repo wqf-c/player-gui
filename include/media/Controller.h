@@ -19,13 +19,19 @@ extern "C"
 #include<mutex>
 #include<thread>
 #include<condition_variable>
+#include<Windows.h>
+#include<deque>
 #include"Decoder.h"
+#include"AudioPlayer.h"
 
 using std::string;
 using std::mutex;
 using std::thread;
 using std::condition_variable;
 using std::unique_lock;
+using std::deque;
+
+#define MAX_AUDIO_FRAME_SIZE 8192
 
 class Controller
 {
@@ -34,11 +40,16 @@ public:
 	void start(string fileName);
 	void setStopFlag(bool flag);
 	void grabPkt();
-	static int getFrameRate(AVStream * inputVideoStream);
+	static int getAudioFrameRate(AVStream *inputAudioStream, int nb_samples);
+	void videoThreadFunc();
+	void audioThreadFunc();
+	static int getVideoFrameRate(AVStream * inputVideoStream);
+	void setFrameVec(vector<AVFrame *> *frameVec) { frameRGBvec = frameVec; }
+	void setLock(mutex *_lock) { locker = _lock; }
 	~Controller();
 
 private:
-	bool stopFlag = false;
+	bool					stopFlag = false;
 	AVFormatContext			*pFormatCtx = NULL;
 	AVStream				*audioStream = NULL;
 	int						audioIndex = -1;
@@ -48,10 +59,16 @@ private:
 	Decoder					videoDecoder;
 	struct SwrContext		*audio_convert_ctx;
 	struct SwsContext		*img_convert_ctx;
-	vector<AVPacket *>		videoVec{};
-	vector<AVPacket *>		audioVec{};
+	deque<AVPacket *>		videoQue{};
+	deque<AVPacket *>		audioQue{};
 	uint8_t					*out_buffer = NULL;
 	condition_variable		cond;
 	mutex					mux;
+	AudioPlayer				*audioPlayer = NULL;
+	vector<AVFrame *>		*frameRGBvec{};
+	mutex					*locker;
+	int						videoTime;
+	int						audioTime;
+	bool					faster = false;
 };
 

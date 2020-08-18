@@ -24,7 +24,7 @@ class Decoder
 public:
 	Decoder();
 	void setCodec(AVCodecParameters *codecpar);
-	void decode(vector<AVFrame *> &frames, AVPacket *pkt);
+	AVFrame * decode(AVPacket *pkt);
 	int64_t getChannelLayout() { return codecCtx->channel_layout; }
 	AVSampleFormat getSampleFmt() { return codecCtx->sample_fmt; }
 	AVPixelFormat getPixFmt() { return codecCtx->pix_fmt; }
@@ -33,7 +33,7 @@ public:
 	int getWidth() { return codecCtx->width; }
 	~Decoder();
 
-private:
+public:
 	AVCodec *codec;
 	AVCodecContext *codecCtx;
 };

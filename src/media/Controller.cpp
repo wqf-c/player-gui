@@ -2,22 +2,27 @@
 
 Controller::Controller()
 {
-
+	avdevice_register_all();
 }
 
 void Controller::start(string fileName) {
-	for (auto iter = videoVec.begin(); iter != videoVec.end(); ++iter) {
+	unique_lock<mutex> locker{ mux };
+	stopFlag = false;
+	for (auto iter = videoQue.begin(); iter != videoQue.end(); ++iter) {
 		av_packet_free(&(*iter));
 	}
-	for (auto iter = audioVec.begin(); iter != audioVec.end(); ++iter) {
+	for (auto iter = audioQue.begin(); iter != audioQue.end(); ++iter) {
 		av_packet_free(&(*iter));
 	}
-	videoVec.clear();
-	audioVec.clear();
+	videoQue.clear();
+	audioQue.clear();
+	locker.unlock();
+	videoTime = 0;
+	audioTime = 0;
 	if (pFormatCtx != NULL) {
 		avformat_free_context(pFormatCtx);
 	}
-	if (audio_convert_ctx != NULL) {
+	/*if (audio_convert_ctx != NULL) {
 		swr_free(&audio_convert_ctx);
 		audio_convert_ctx = NULL;
 	}
@@ -25,7 +30,7 @@ void Controller::start(string fileName) {
 		sws_freeContext(img_convert_ctx);
 		img_convert_ctx = NULL;
 
-	}
+	}*/
 
 	pFormatCtx = avformat_alloc_context();
 	if (avformat_open_input(&pFormatCtx, fileName.c_str(), NULL, NULL) != 0) {
@@ -57,34 +62,48 @@ void Controller::start(string fileName) {
 	audioDecoder.setCodec(audioStream->codecpar);
 	audio_convert_ctx = swr_alloc();
 	audio_convert_ctx = swr_alloc_set_opts(NULL,
-		AV_CH_LAYOUT_STEREO,                                /*out*/
-		//av_get_default_channel_layout(spec.channels),
-		AV_SAMPLE_FMT_S16,                              /*out*/
-		//out_sample_rate,                             /*out*/
+		AV_CH_LAYOUT_STEREO,                            
+		AV_SAMPLE_FMT_S16,                                        
 		audioStream->codecpar->sample_rate,
-		audioDecoder.getChannelLayout(),                                  /*in*/
-		audioDecoder.getSampleFmt(),               /*in*/
-		audioDecoder.getSampleRate(),               /*in*/
+		audioDecoder.getChannelLayout(),                                
+		audioDecoder.getSampleFmt(),              
+		audioDecoder.getSampleRate(),             
 		0,
 		NULL);
 
-	swr_init(audio_convert_ctx);
+	int ret = swr_init(audio_convert_ctx);
+	if (ret != 0) {
+		printf("swr_init failed\n");
+	}
+	else {
+		printf("swr_init success\n");
+	}
 	if (out_buffer != NULL) {
 		av_free(out_buffer);
 		out_buffer = NULL;
 	}
-	out_buffer = (uint8_t *)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, videoDecoder.getWidth(), videoDecoder.getHeight(), 32) * sizeof(uint8_t));
+	out_buffer = (uint8_t *)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, 640, 480, 32) * sizeof(uint8_t));
 	img_convert_ctx = sws_getContext(videoDecoder.getWidth(), videoDecoder.getHeight(),
-		videoDecoder.getPixFmt() , videoDecoder.getWidth(), videoDecoder.getHeight(), AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
-
+		videoDecoder.getPixFmt() , 640, 480, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
+	if (audioPlayer != NULL) {
+		delete audioPlayer;
+	}
+	audioPlayer = new AudioPlayer("", audioStream->codecpar->sample_rate);
+	thread grab{ &Controller::grabPkt, this };
+	thread video{ &Controller::videoThreadFunc, this };
+//	thread audio{ &Controller::audioThreadFunc, this };
+	//audio.detach();
+	grab.detach();
+	video.detach();
+	
 }
 
 void Controller::grabPkt() {
-	while (true)
+	while (!stopFlag)
 	{
 		unique_lock<mutex> lock{ mux };
-		if (videoVec.size() >= 3 && audioVec.size() >= 3) {
-			cond.wait(lock, [&]() {return videoVec.size() < 3 || audioVec.size() <= 3; });
+		if (videoQue.size() >= 3 && audioQue.size() >= 3) {
+			cond.wait(lock, [&]() {return videoQue.size() < 3 || audioQue.size() < 3; });
 		}
 		AVPacket *inputPkt = av_packet_alloc();
 		av_init_packet(inputPkt);
@@ -95,12 +114,103 @@ void Controller::grabPkt() {
 			return;
 		}
 		if (inputPkt->stream_index == audioIndex) {
-			audioVec.push_back(inputPkt);
+			audioQue.push_back(inputPkt);
 		}
 		if (inputPkt->stream_index == videoIndex) {
-			videoVec.push_back(inputPkt);
+			videoQue.push_back(inputPkt);
 		}
 		lock.unlock();
+	}
+}
+
+void Controller::videoThreadFunc() {
+	vector<AVFrame *> vec{};
+	int sleep = 1000 / getVideoFrameRate(videoStream);
+	while (!stopFlag)
+	{
+		int delay = faster ? sleep : sleep / 2;
+		Sleep(delay);
+		unique_lock<mutex> lock{ mux };
+		if (videoQue.size() >= 3) {
+			AVPacket *pkt = videoQue.front();
+			videoQue.pop_front();
+			lock.unlock();
+			cond.notify_one();
+			AVFrame * inputFrame = videoDecoder.decode( pkt);
+			av_packet_free(&pkt);
+			if (inputFrame != NULL && locker != NULL && frameRGBvec != NULL) {
+				videoTime = inputFrame->pts * av_q2d(videoStream->time_base) * 1000;
+				if (videoTime < audioTime && audioTime - videoTime > 30) {
+					faster = true;
+				}
+				else {
+					faster = false;
+				}
+				AVFrame *frameRGB = av_frame_alloc();
+				av_image_fill_arrays(frameRGB->data, frameRGB->linesize, out_buffer,
+					AV_PIX_FMT_RGB24, 640, 480, 32);
+				frameRGB->format = AV_PIX_FMT_RGB24;
+				frameRGB->width = 640;
+				frameRGB->height = 480;
+				sws_scale(img_convert_ctx, (const uint8_t* const*)inputFrame->data,
+					inputFrame->linesize, 0, videoDecoder.getHeight(), frameRGB->data, frameRGB->linesize);
+				av_frame_free(&inputFrame);
+				if (frameRGB) {
+					locker->lock();
+					if (frameRGBvec->size() == 0) {
+						frameRGBvec->push_back(frameRGB);
+					}
+					else {
+						AVFrame *f = frameRGBvec->back();
+						frameRGBvec->pop_back();
+						frameRGBvec->push_back(frameRGB);
+						av_frame_free(&f);
+					}
+					locker->unlock();
+				}
+			}
+		}
+		else {
+			lock.unlock();
+		}
+		
+	}
+}
+
+void Controller::audioThreadFunc() {
+	vector<AVFrame *> vec{};
+	int sleep = 40;
+	while (!stopFlag)
+	{
+		Sleep(sleep);
+		unique_lock<mutex> lock{ mux };
+		if (audioQue.size() >= 3) {
+			AVPacket *pkt = audioQue.front();
+			audioQue.pop_front();
+			lock.unlock();
+			cond.notify_one();
+			AVFrame *inputFrame = audioDecoder.decode( pkt);
+			
+			if (inputFrame != NULL) {
+				uint8_t audio_buf[MAX_AUDIO_FRAME_SIZE*10];
+				memset(audio_buf, 0, MAX_AUDIO_FRAME_SIZE * 10);
+				sleep = inputFrame->nb_samples * 1000 / audioStream->codecpar->sample_rate;
+				audioTime = inputFrame->pts * av_q2d(audioStream->time_base) * 1000;
+				int outSamples = swr_convert(audio_convert_ctx, (uint8_t**)&audio_buf, MAX_AUDIO_FRAME_SIZE*10,
+					(const uint8_t**)inputFrame->extended_data, inputFrame->nb_samples);
+				int outDataSize = 
+					av_samples_get_buffer_size(NULL, audioStream->codecpar->channels, outSamples, AV_SAMPLE_FMT_S16, 1);
+				audioPlayer->workData(audio_buf, outDataSize);
+				av_frame_free(&inputFrame);
+			}
+				
+			
+			av_packet_free(&pkt);
+			
+		}
+		else {
+			lock.unlock();
+		}
 	}
 }
 
@@ -108,7 +218,7 @@ void Controller::setStopFlag(bool flag) {
 	stopFlag = flag;
 }
 
-int Controller::getFrameRate(AVStream * inputVideoStream) {
+int Controller::getVideoFrameRate(AVStream * inputVideoStream) {
 	int frameRate = 40;
 	if (inputVideoStream != nullptr && inputVideoStream->r_frame_rate.den > 0)
 	{
@@ -120,6 +230,10 @@ int Controller::getFrameRate(AVStream * inputVideoStream) {
 		frameRate = inputVideoStream->r_frame_rate.num / inputVideoStream->r_frame_rate.den;
 	}
 	return frameRate;
+}
+
+int Controller::getAudioFrameRate(AVStream *inputAudioStream, int nb_samples) {
+	return nb_samples * 1000 / inputAudioStream->codecpar->sample_rate;
 }
 
 Controller::~Controller()

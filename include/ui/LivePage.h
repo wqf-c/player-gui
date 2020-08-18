@@ -46,6 +46,7 @@ class LivePage : public wxFrame
 		// Virtual event handlers, overide them in your derived class
 		virtual void videoSelect( wxListEvent& event ) { event.Skip(); }
 		virtual void chooseFolder( wxCommandEvent& event ) { event.Skip(); }
+		virtual void paintEvent(wxPaintEvent& event) { event.Skip(); }
 
 
 	public:

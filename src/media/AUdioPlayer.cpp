@@ -38,38 +38,21 @@ AudioPlayer::AudioPlayer(string playerName, int pFreq) {
 
 }
 
-//void MediaPlayer::setDecoder(MediaDecoder *_decoder) {
-//	decoder = _decoder;
-//	auto decoderCallback = [&](uint8_t *data, int len) {
-//		workData(data, len);
-//	};
-//
-//	decoder->setCallback(decoderCallback);
-//}
-
-//void MediaPlayer::play(uint8_t *data, int len, bool useSsrc, uint32_t ssrc, uint32_t timeStamp) {
-//	D_LOG("recv play data, len:{}", len);
-//	//decoder->process(data, len, useSsrc, ssrc, timeStamp);
-//	//workData(data, len);
-//}
 
 void AudioPlayer::workData(uint8_t *data, int len) {
-
-	//	unique_lock<mutex> locker{ mu };
 
 	recycle();
 	if (data != nullptr && !playerBufferQueue.empty()) {
 		ALuint buffer = playerBufferQueue.front();
 		playerBufferQueue.pop_front();
-		alBufferData(buffer, AL_FORMAT_MONO16, data, len, freq);
+		alBufferData(buffer, 2, data, len, freq);
 		alSourceQueueBuffers(playerSource, 1, &buffer);
 		bufferIndex = 0;
 	}
 
 	resume();
 
-	//todo 播放结束清空该数据对应的ssrc的用户名称
-//	locker.unlock();
+
 }
 
 bool AudioPlayer::isPlaying() {

@@ -28,35 +28,31 @@ void Decoder::setCodec(AVCodecParameters *codecpar) {
 			avcodec_free_context(&codecCtx);
 		}
 	}
+	if (avcodec_open2(codecCtx, codec, NULL) != 0) {
+		printf("codec open fail\n");
+		return;
+	}
 }
 
-void Decoder::decode(vector<AVFrame *> &frames, AVPacket *pkt) {
+AVFrame * Decoder::decode(AVPacket *pkt) {
 	int ret = avcodec_send_packet(codecCtx, pkt);
 	if (ret < 0) {
 		printf("Error submitting the packet to the decoder\n");
-		return;
+		return NULL;
 	}
 
 	/* read all the output frames (in general there may be any number of them */
-	while (ret >= 0) {
-		AVFrame *d_frame = av_frame_alloc();
-		ret = avcodec_receive_frame(codecCtx, d_frame);
-		if (d_frame->nb_samples == 0) {
-			av_frame_free(&d_frame);
-			return;
-		}
-		if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-			av_frame_free(&d_frame);
-			return;
-		}
-		else if (ret < 0) {
-			av_frame_free(&d_frame);
-			printf("Error during decoding\n");
-			return;
-		}
-		//av_frame_free(&d_frame);
-		frames.push_back(d_frame);
+
+	AVFrame *d_frame = av_frame_alloc();
+	ret = avcodec_receive_frame(codecCtx, d_frame);
+	if (ret == 0) {
+		return d_frame;
 	}
+	else {
+		printf("Error submitting the packet to the decoder 22:%d \n", ret);
+		return NULL;
+	}
+		
 }
 
 Decoder::~Decoder()
