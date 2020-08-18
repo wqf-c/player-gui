@@ -136,7 +136,13 @@ void Controller::videoThreadFunc() {
 	int sleep = 1000 / getVideoFrameRate(videoStream);
 	while (!stopFlag)
 	{
-		int delay = faster ? sleep : sleep / 2;
+		int delay = sleep;
+		if (faster == -1) {
+			delay = sleep / 2;
+		}
+		if (faster == 1) {
+			delay = sleep * 2;
+		}
 		Sleep(delay);
 		unique_lock<mutex> lock{ mux };
 		if (videoQue.size() >= 3) {
@@ -149,10 +155,13 @@ void Controller::videoThreadFunc() {
 			if (inputFrame != NULL && locker != NULL && frameRGBvec != NULL) {
 				videoTime = inputFrame->pts * av_q2d(videoStream->time_base) * 1000;
 				if (videoTime < audioTime && audioTime - videoTime > 30) {
-					faster = true;
+					faster = -1;
+				}
+				else if(audioTime < videoTime && videoTime - audioTime > 30){
+					faster = 1;
 				}
 				else {
-					faster = false;
+					faster = 0;
 				}
 				AVFrame *frameRGB = av_frame_alloc();
 				av_image_fill_arrays(frameRGB->data, frameRGB->linesize, out_buffer,
@@ -201,8 +210,6 @@ void Controller::audioThreadFunc() {
 			audioQue.pop_front();
 			lock.unlock();
 			cond.notify_one();
-			i++;
-			if (i < 10) continue;
 			
 			AVFrame *inputFrame = audioDecoder.decode( pkt);
 			
@@ -244,6 +251,7 @@ int Controller::getVideoFrameRate(AVStream * inputVideoStream) {
 
 		frameRate = inputVideoStream->r_frame_rate.num / inputVideoStream->r_frame_rate.den;
 	}
+	cout << "frame rate:" << frameRate << endl;
 	return frameRate;
 }
 

@@ -69,7 +69,7 @@ private:
 	mutex					*locker;
 	int						videoTime;
 	int						audioTime;
-	bool					faster = false;
+	int					faster = 0;
 	uint64_t out_chn_layout = AV_CH_LAYOUT_STEREO;  //通道布局 输出双声道
 	enum AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16; //声音格式
 	int out_sample_rate = 44100;   //采样率
