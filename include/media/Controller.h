@@ -33,6 +33,14 @@ using std::deque;
 
 #define MAX_AUDIO_FRAME_SIZE 192000
 
+enum CallBackType
+{
+	VIDEODURATION,
+	PLAYPROGRESS
+};
+
+typedef std::function<void(CallBackType, int)> UI_CALLBACK;
+
 class Controller
 {
 public:
@@ -46,6 +54,7 @@ public:
 	static int getVideoFrameRate(AVStream * inputVideoStream);
 	void setFrameVec(vector<AVFrame *> *frameVec) { frameRGBvec = frameVec; }
 	void setLock(mutex *_lock) { locker = _lock; }
+	void setUiCallBack(UI_CALLBACK _callBack) { callBack = _callBack; }
 	~Controller();
 
 private:
@@ -75,5 +84,6 @@ private:
 	int out_sample_rate = 44100;   //采样率
 	int width = 640;
 	int height = 480;
+	UI_CALLBACK callBack;
 };
 

@@ -7,6 +7,12 @@ LivePage( parent )
 	timer = new RenderTimer(videoPanel);
 	controller.setFrameVec(&frameVec);
 	controller.setLock(&mtx);
+
+	auto CallBack = [&](CallBackType type, int time) {
+		Callback(type, time);
+	};
+	controller.setUiCallBack(CallBack);
+
 	wxListItem col0;
 	col0.SetId(0); // id必须设置，代表第0列
 	col0.SetText(wxT("#"));
@@ -20,10 +26,35 @@ LivePage( parent )
 	col1.SetWidth(190);
 	col1.SetText(wxT("文件名"));
 	videoList->InsertColumn(1, col1);
+	Connect(wxEVT_CUSTOM_UI_COMMAND,
+		wxCommandEventHandler(PlayerLivePage::Callback));
 }
 
 
+void PlayerLivePage::Callback(CallBackType type, int time)
+{
+	wxCommandEvent evtcustom(wxEVT_CUSTOM_UI_COMMAND);
+	evtcustom.SetInt(type);
+	evtcustom.SetTimestamp(time);
+	wxPostEvent(this, evtcustom);
+}
 
+void PlayerLivePage::Callback(wxCommandEvent &evt) {
+	int eve = evt.GetInt();
+	int time = evt.GetTimestamp()/1000;
+	switch (eve)
+	{
+	case VIDEODURATION:
+		processSlide->SetMax(time);
+		break;
+	case PLAYPROGRESS:
+		processSlide->SetValue(time);
+		break;
+	default:
+		break;
+	}
+	
+}
 
 
 void PlayerLivePage::processSlideOnSlider( wxCommandEvent& event )
@@ -106,3 +137,5 @@ void PlayerLivePage::renderPic(wxDC *dc)
 		printf("frameVec is null");
 	}
 }
+
+

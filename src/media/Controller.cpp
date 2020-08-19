@@ -97,6 +97,8 @@ void Controller::start(string fileName) {
 		delete audioPlayer;
 	}
 	audioPlayer = new AudioPlayer("", out_sample_rate);
+	int duration = pFormatCtx->duration / AV_TIME_BASE;//求出总时长
+	callBack(VIDEODURATION, duration*1000);
 	thread grab{ &Controller::grabPkt, this };
 	thread video{ &Controller::videoThreadFunc, this };
 	thread audio{ &Controller::audioThreadFunc, this };
@@ -134,6 +136,7 @@ void Controller::grabPkt() {
 void Controller::videoThreadFunc() {
 	vector<AVFrame *> vec{};
 	int sleep = 1000 / getVideoFrameRate(videoStream);
+	int time = 0;
 	while (!stopFlag)
 	{
 		int delay = sleep;
@@ -154,6 +157,11 @@ void Controller::videoThreadFunc() {
 			av_packet_free(&pkt);
 			if (inputFrame != NULL && locker != NULL && frameRGBvec != NULL) {
 				videoTime = inputFrame->pts * av_q2d(videoStream->time_base) * 1000;
+				if (time == 0) time = videoTime;
+				if (videoTime - time > 500) {
+					time = videoTime;
+					callBack(PLAYPROGRESS, time);
+				}
 				if (videoTime < audioTime && audioTime - videoTime > 30) {
 					faster = -1;
 				}
