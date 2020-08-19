@@ -22,56 +22,30 @@ LivePage( parent )
 	videoList->InsertColumn(1, col1);
 }
 
-void PlayerLivePage::paintEvent(wxPaintEvent &evt) {
-	wxPaintDC dc(videoPanel);
-	renderPic(&dc);
-}
 
-void PlayerLivePage::renderPic(wxDC *dc) {
-	std::lock_guard<std::mutex> locker(mtx);
-	if (!frameVec.empty()) {
-		auto frameRGB = frameVec.back();
 
-		unsigned char *data = frameRGB->data[0];
-		wxSize size = wxSize(frameRGB->width, frameRGB->height);
-		//wxSize size = wxSize(640, 480);
 
-		wxImage *image = new wxImage(size, data);
-		if (frameRGB->width > 640) {//固定画布的显示范围，否则超出了屏幕了
-//            image->Scale(640,640*frameRGB->height/frameRGB->width);
-		}
-		wxBitmap *img = new wxBitmap(*image);
 
-		dc->DrawBitmap(*img, wxPoint(40, 40));
-
-		//wxMemoryDC memDC;
-		//wxRect rect = this->GetRect();
-		//wxBitmap bitmap(rect.GetSize());
-		//memDC.SelectObject(bitmap);
-
-		/* 开始绘图 */
-//        memDC.SetBackground(*wxRED_BRUSH);
-//        memDC.Clear();
-
-		//memDC.DrawBitmap(*img, 40, 40);
-		//dc->Blit(wxPoint(40, 40), vGrabber->getImageSize(), &memDC, wxPoint(40, 40));
-
-		//delete img;
-	}
-	else {
-		printf("frameVec is null");
-	}
+void PlayerLivePage::processSlideOnSlider( wxCommandEvent& event )
+{
+// TODO: Implement processSlideOnSlider
+	
 }
 
 void PlayerLivePage::videoSelect( wxListEvent& event )
 {
 // TODO: Implement videoSelect
+	unique_lock<mutex> lock{ mtx };
+	for (auto iter = frameVec.begin(); iter != frameVec.end(); ++iter) {
+		av_frame_free(&(*iter));
+	}
+	frameVec.clear();
+	lock.unlock();
 	wxString fileName = fileCache.at(event.m_itemIndex);
 	controller.setStopFlag(true);
-	Sleep(100);
+	Sleep(300);
 	timer->start();
 	controller.start(fileName.ToStdString());
-	//cout << fileName << endl;
 }
 
 void PlayerLivePage::chooseFolder( wxCommandEvent& event )
@@ -102,5 +76,33 @@ void PlayerLivePage::chooseFolder( wxCommandEvent& event )
 			fileCache[indexItem] = files[i];
 		}
 		total++;
+	}
+}
+
+
+void PlayerLivePage::paintEvent(wxPaintEvent &evt) 
+{
+	wxPaintDC  dc(videoPanel);
+	renderPic(&dc);
+}
+
+void PlayerLivePage::renderPic(wxDC *dc) 
+{
+	std::unique_lock<std::mutex> locker(mtx);
+	if (!frameVec.empty()) {
+		auto frameRGB = frameVec.back();
+		locker.unlock();
+		unsigned char *data = frameRGB->data[0];
+		wxSize size = wxSize(frameRGB->width, frameRGB->height);
+
+		wxImage *image = new wxImage(size, data);
+		wxBitmap *img = new wxBitmap(*image);
+
+		dc->DrawBitmap(*img, 0, 0);
+		delete img;
+	}
+	else {
+		locker.unlock();
+		printf("frameVec is null");
 	}
 }
