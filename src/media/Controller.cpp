@@ -3,7 +3,6 @@
 Controller::Controller()
 {
 	avdevice_register_all();
-	 
 }
 
 void Controller::start(string fileName) {
@@ -108,6 +107,29 @@ void Controller::start(string fileName) {
 	
 }
 
+void Controller::seekVideo(long sec) {
+	AVRational r{ 1, AV_TIME_BASE };
+	int64_t vPts = sec / av_q2d(videoStream->time_base);
+	int64_t aPts = sec / av_q2d(audioStream->time_base);
+	ctxMux.lock();
+	int ret1 = av_seek_frame(pFormatCtx, videoIndex, vPts, AVSEEK_FLAG_BACKWARD);
+	int ret2 = av_seek_frame(pFormatCtx, audioIndex, aPts, AVSEEK_FLAG_BACKWARD);
+	ctxMux.unlock();
+	printf("%d----%d\n", ret1, ret2);
+	unique_lock<mutex> lock{ mux };
+	for (auto iter = audioQue.begin(); iter != audioQue.end(); ++iter) {
+		av_packet_free(&(*iter));
+	}
+	for (auto iter = videoQue.begin(); iter != videoQue.end(); ++iter) {
+		av_packet_free(&(*iter));
+	}
+	audioQue.clear();
+	videoQue.clear();
+	lock.unlock();
+	cond.notify_one();
+}
+
+
 void Controller::grabPkt() {
 	while (!stopFlag)
 	{
@@ -117,9 +139,11 @@ void Controller::grabPkt() {
 		}
 		AVPacket *inputPkt = av_packet_alloc();
 		av_init_packet(inputPkt);
+		ctxMux.lock();
 		int ret = av_read_frame(pFormatCtx, inputPkt);
+		ctxMux.unlock();
 		if (ret < 0) {
-			printf("read frame fail\n");
+			printf("read frame fail:%d\n", ret);
 			lock.unlock();
 			return;
 		}

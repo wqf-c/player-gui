@@ -3,7 +3,6 @@
 #include<vector>
 extern "C"
 {
-#include "SDL2/SDL.h"
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include<libavutil/frame.h>
@@ -15,6 +14,15 @@ extern "C"
 #include "libswscale/swscale.h"
 #include "libavdevice/avdevice.h"
 #include "libavutil/imgutils.h"
+#include<libavutil/time.h>
+#include "libavutil/audio_fifo.h"
+#include "libavutil/avstring.h"
+#include "libswresample/swresample.h"
+#include <libavutil/opt.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/samplefmt.h>
+#include "libavutil/opt.h"
+#include "libavutil/time.h"
 }
 
 using std::vector;
@@ -34,8 +42,8 @@ public:
 	~Decoder();
 
 public:
-	AVCodec *codec;
-	AVCodecContext *codecCtx;
+	AVCodec *codec = NULL;
+	AVCodecContext *codecCtx = NULL;
 };
 
 

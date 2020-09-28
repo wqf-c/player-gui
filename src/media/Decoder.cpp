@@ -7,9 +7,11 @@ Decoder::Decoder() {
 }
 
 void Decoder::setCodec(AVCodecParameters *codecpar) {
+	printf("aaa\n");
 	if (codecCtx != NULL) {
 		avcodec_free_context(&codecCtx);
 	}
+	printf("aaaa\n");
 	codec = avcodec_find_decoder(codecpar->codec_id);
 	if (codec == NULL) {
 		printf("open codec fail\n");

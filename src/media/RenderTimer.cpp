@@ -10,7 +10,7 @@ void RenderTimer::Notify() {
 	//��ȾͼƬ
 	//
 	isTimeRender = true;
-	panel->Refresh();//����pageҳ����ػ��¼�
+	panel->Refresh(false);//����pageҳ����ػ��¼�
 }
 
 void RenderTimer::start() {

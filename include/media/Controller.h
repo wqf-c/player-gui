@@ -55,6 +55,7 @@ public:
 	void setFrameVec(vector<AVFrame *> *frameVec) { frameRGBvec = frameVec; }
 	void setLock(mutex *_lock) { locker = _lock; }
 	void setUiCallBack(UI_CALLBACK _callBack) { callBack = _callBack; }
+	void seekVideo(long ms);
 	~Controller();
 
 private:
@@ -76,6 +77,7 @@ private:
 	AudioPlayer				*audioPlayer = NULL;
 	vector<AVFrame *>		*frameRGBvec{};
 	mutex					*locker;
+	mutex                   ctxMux;
 	int						videoTime;
 	int						audioTime;
 	int					faster = 0;

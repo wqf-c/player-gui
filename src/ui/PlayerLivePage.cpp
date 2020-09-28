@@ -60,7 +60,8 @@ void PlayerLivePage::Callback(wxCommandEvent &evt) {
 void PlayerLivePage::processSlideOnSlider( wxCommandEvent& event )
 {
 // TODO: Implement processSlideOnSlider
-	
+	int current = processSlide->GetValue();
+	controller.seekVideo(current);
 }
 
 void PlayerLivePage::videoSelect( wxListEvent& event )

@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.8)
 
 #add_compile_options(-std=c++11)
 project(player-gui VERSION 0.0.1)
 set(APP_NAME ${PROJECT_NAME})
 #set(INST_DIR "F:/gitRepos/gitea/kankan/build/_CPack_Packages/win64/NSIS/kankan-0.0.1-win64")
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "-D__STDC_CONSTANT_MACROS")
 if (MSVC) # Check if we are using the Visual Studio compiler
@@ -52,6 +52,12 @@ macro(add_execute file name ispack)
 			${project_needed_libraries}
 			)
 endmacro()
+
+if (APPLE)
+	set(AEC3_LIBRARY "${PROJECT_SOURCE_DIR}/lib/libns_lib.a")
+else()
+	set(AEC3_LIBRARY "${PROJECT_SOURCE_DIR}/lib/aec3_lib.lib")
+endif ()
 
 
 macro(add_compile_dir dirName)
@@ -125,15 +131,22 @@ find_library(OPENAL32_LIBRARY OpenAL32)
 find_path(AL_INCLUDE_DIR al.h)
 
 
+if (APPLE)
+	set(ECHO_LIBRARY "${PROJECT_SOURCE_DIR}/lib/libspeex_lib.a")
+else()
+	set(ECHO_LIBRARY "${PROJECT_SOURCE_DIR}/lib/aec3_lib.lib")
+endif ()
 
 
 
 # 2. ========================link and include========================
 set(project_needed_includes
 		${project_needed_includes}
+		${PROJECT_SOURCE_DIR}/AEC3/include
 		${PROJECT_SOURCE_DIR}/include/ui
 		${PROJECT_SOURCE_DIR}/include/media
 		${PROJECT_SOURCE_DIR}/include/utils
+		${PROJECT_SOURCE_DIR}/include/test
 		${PROJECT_SOURCE_DIR}/lib
 		${WXWIDGET_INCLUDE_DIR}
 		${WXWIDGET_INCLUDE_DIR}/msvc
@@ -163,6 +176,7 @@ set(project_needed_libraries
 		${SWRESAMPLE_LIBRARY}
 		${SWSCALE_LIBRARY}
 		${OPENAL32_LIBRARY}
+		${ECHO_LIBRARY}
 		)
 
 # 3.========================打印相关信息========================
@@ -208,7 +222,7 @@ message(====OPENAL_INFO====)
 message(OPENAL32_LIBRARY=${OPENAL32_LIBRARY})
 message(AL_INCLUDE_DIR=${AL_INCLUDE_DIR})
 
-
+message(AEC3_LIB = ${ECHO_LIBRARY})
 
 
 # 4.========================config配置========================
@@ -249,6 +263,11 @@ add_compile_dir(src/websocket)
 
 # 6. ========================包含main函数的文件运行========================
 add_execute(src/Boot.cpp ${PROJECT_NAME} false)
+#add_execute(src/test/windowCapture.cpp ${PROJECT_NAME} false)
+#add_execute(src/test/windowCapture2.cpp ${PROJECT_NAME} false)
+#add_execute(src/test/again.cpp ${PROJECT_NAME} false)
+#add_execute(src/test/winrt_capture.cpp ${PROJECT_NAME} false)
+#add_execute(src/test/testVideoCapture.cpp ${PROJECT_NAME} false)
 #add_execute(src/test/testupanddenoise.cpp testupanddenoise false)
 #add_execute_test(src/test/recordmic.cpp recordmic)
 #add_execute_test(src/test/Capture.cpp Capture)
