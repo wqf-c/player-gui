@@ -41,6 +41,21 @@ LivePage::LivePage(wxWindow* parent, wxWindowID id, const wxString& title, const
 
 	bSizer8->Add(processSlide, 0, wxALL, 5);
 
+	wxBoxSizer* bSizer71;
+	bSizer71 = new wxBoxSizer(wxHORIZONTAL);
+
+	m_bpButton3 = new wxBitmapButton(m_panel5, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW | 0);
+	bSizer71->Add(m_bpButton3, 0, wxALIGN_BOTTOM | wxALL, 5);
+
+	m_bpButton4 = new wxBitmapButton(m_panel5, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW | 0);
+	bSizer71->Add(m_bpButton4, 0, wxALIGN_BOTTOM | wxALL, 5);
+
+	m_bpButton5 = new wxBitmapButton(m_panel5, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW | 0);
+	bSizer71->Add(m_bpButton5, 0, wxALIGN_BOTTOM | wxALL, 5);
+
+
+	bSizer8->Add(bSizer71, 1, wxALIGN_CENTER, 5);
+
 
 	m_panel5->SetSizer(bSizer8);
 	m_panel5->Layout();
@@ -93,6 +108,9 @@ LivePage::LivePage(wxWindow* parent, wxWindowID id, const wxString& title, const
 	// Connect Events
 	videoPanel->Connect(wxEVT_PAINT, wxPaintEventHandler(LivePage::paintEvent), NULL, this);
 	processSlide->Connect(wxEVT_SLIDER, wxCommandEventHandler(LivePage::processSlideOnSlider), NULL, this);
+	m_bpButton3->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::lastVideo), NULL, this);
+	m_bpButton4->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::playBtnClick), NULL, this);
+	m_bpButton5->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::nextVideo), NULL, this);
 	videoList->Connect(wxEVT_COMMAND_LIST_ITEM_SELECTED, wxListEventHandler(LivePage::videoSelect), NULL, this);
 	chooseFolderBtn->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::chooseFolder), NULL, this);
 }
@@ -102,6 +120,9 @@ LivePage::~LivePage()
 	// Disconnect Events
 	videoPanel->Disconnect(wxEVT_PAINT, wxPaintEventHandler(LivePage::paintEvent), NULL, this);
 	processSlide->Disconnect(wxEVT_SLIDER, wxCommandEventHandler(LivePage::processSlideOnSlider), NULL, this);
+	m_bpButton3->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::lastVideo), NULL, this);
+	m_bpButton4->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::playBtnClick), NULL, this);
+	m_bpButton5->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::nextVideo), NULL, this);
 	videoList->Disconnect(wxEVT_COMMAND_LIST_ITEM_SELECTED, wxListEventHandler(LivePage::videoSelect), NULL, this);
 	chooseFolderBtn->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(LivePage::chooseFolder), NULL, this);
 

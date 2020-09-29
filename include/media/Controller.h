@@ -36,7 +36,8 @@ using std::deque;
 enum CallBackType
 {
 	VIDEODURATION,
-	PLAYPROGRESS
+	PLAYPROGRESS,
+	VIDEOEND
 };
 
 typedef std::function<void(CallBackType, int)> UI_CALLBACK;
@@ -55,6 +56,8 @@ public:
 	void setFrameVec(vector<AVFrame *> *frameVec) { frameRGBvec = frameVec; }
 	void setLock(mutex *_lock) { locker = _lock; }
 	void setUiCallBack(UI_CALLBACK _callBack) { callBack = _callBack; }
+	void pause();
+	void reStart();
 	void seekVideo(long ms);
 	~Controller();
 
@@ -87,5 +90,6 @@ private:
 	int width = 640;
 	int height = 480;
 	UI_CALLBACK callBack;
+	bool noMoreFrame = false;
 };
 

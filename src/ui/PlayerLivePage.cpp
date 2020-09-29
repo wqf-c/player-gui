@@ -1,9 +1,12 @@
 #include "PlayerLivePage.h"
+#include "wx/msgdlg.h"
+#include "wx/stdpaths.h"
 
 PlayerLivePage::PlayerLivePage( wxWindow* parent )
 :
 LivePage( parent )
 {
+	wxImage::AddHandler(new wxPNGHandler);
 	timer = new RenderTimer(videoPanel);
 	controller.setFrameVec(&frameVec);
 	controller.setLock(&mtx);
@@ -28,6 +31,12 @@ LivePage( parent )
 	videoList->InsertColumn(1, col1);
 	Connect(wxEVT_CUSTOM_UI_COMMAND,
 		wxCommandEventHandler(PlayerLivePage::Callback));
+
+	auto standPath = wxStandardPaths::Get();
+	string stopImgPath = standPath.GetResourcesDir().ToStdString() +  "\\resource\\img\\stop.png";
+	wxImage stopImg(stopImgPath, wxBITMAP_TYPE_PNG);
+	if (stopImg.IsOk())
+		m_bpButton4->SetBitmap(stopImg);
 }
 
 
@@ -49,6 +58,17 @@ void PlayerLivePage::Callback(wxCommandEvent &evt) {
 		break;
 	case PLAYPROGRESS:
 		processSlide->SetValue(time);
+		break;
+	case VIDEOEND:
+	{
+		processSlide->SetValue(0);
+		auto standPath = wxStandardPaths::Get();
+		statue = NOVIDEO;
+		string stopImgPath = standPath.GetResourcesDir().ToStdString() + "\\resource\\img\\stop.png";
+		wxImage stopImg(stopImgPath, wxBITMAP_TYPE_PNG);
+		if (stopImg.IsOk())
+			m_bpButton4->SetBitmap(stopImg);
+	}
 		break;
 	default:
 		break;
@@ -78,6 +98,7 @@ void PlayerLivePage::videoSelect( wxListEvent& event )
 	Sleep(300);
 	timer->start();
 	controller.start(fileName.ToStdString());
+	statue = PLAYING;
 }
 
 void PlayerLivePage::chooseFolder( wxCommandEvent& event )
@@ -139,4 +160,31 @@ void PlayerLivePage::renderPic(wxDC *dc)
 	}
 }
 
+
+void PlayerLivePage::lastVideo(wxCommandEvent& event) {
+
+}
+
+void PlayerLivePage::playBtnClick(wxCommandEvent& event) {
+	if (fileCache.empty() || statue == NOVIDEO) return;
+	auto standPath = wxStandardPaths::Get();
+	string imgName = statue == PLAYING ? "\\resource\\img\\stop.png" : "\\resource\\img\\start.png";
+	string startImgPath = standPath.GetResourcesDir().ToStdString() + imgName;
+	wxImage stopImg(startImgPath, wxBITMAP_TYPE_PNG);
+	if (stopImg.IsOk())
+		m_bpButton4->SetBitmap(stopImg);
+	if (statue == PLAYING) {
+		statue = STOP;
+		controller.pause();
+	}
+	else {
+		statue = PLAYING;
+		controller.reStart();
+	}
+	
+}
+
+void PlayerLivePage::nextVideo(wxCommandEvent& event) {
+
+}
 

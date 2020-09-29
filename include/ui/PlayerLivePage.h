@@ -40,6 +40,11 @@ using std::map;
 
 wxDEFINE_EVENT(wxEVT_CUSTOM_UI_COMMAND, wxCommandEvent);
 
+enum VIDEOSTATUS{
+	STOP,		//暂停播放
+	PLAYING,	//正在播放
+	NOVIDEO		//没有正在播放的视频
+};
 
 
 //// end generated include
@@ -53,11 +58,15 @@ class PlayerLivePage : public LivePage
 		mutex mtx;
 		Controller controller{};
 		map<int, wxString> fileCache{};
+		VIDEOSTATUS statue = NOVIDEO;
 
 	protected:
 		// Handlers for LivePage events.
 		void paintEvent(wxPaintEvent& event);
 		void processSlideOnSlider(wxCommandEvent& event);
+		void lastVideo(wxCommandEvent& event);
+		void playBtnClick(wxCommandEvent& event);
+		void nextVideo(wxCommandEvent& event);
 		void videoSelect(wxListEvent& event);
 		void chooseFolder(wxCommandEvent& event);
 		void renderPic(wxDC *dc);

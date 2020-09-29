@@ -131,14 +131,6 @@ find_library(OPENAL32_LIBRARY OpenAL32)
 find_path(AL_INCLUDE_DIR al.h)
 
 
-if (APPLE)
-	set(ECHO_LIBRARY "${PROJECT_SOURCE_DIR}/lib/libspeex_lib.a")
-else()
-	set(ECHO_LIBRARY "${PROJECT_SOURCE_DIR}/lib/aec3_lib.lib")
-endif ()
-
-
-
 # 2. ========================link and include========================
 set(project_needed_includes
 		${project_needed_includes}
@@ -176,7 +168,6 @@ set(project_needed_libraries
 		${SWRESAMPLE_LIBRARY}
 		${SWSCALE_LIBRARY}
 		${OPENAL32_LIBRARY}
-		${ECHO_LIBRARY}
 		)
 
 # 3.========================打印相关信息========================
@@ -221,8 +212,6 @@ message(SWSCALE_LIBRARY=${SWSCALE_LIBRARY})
 message(====OPENAL_INFO====)
 message(OPENAL32_LIBRARY=${OPENAL32_LIBRARY})
 message(AL_INCLUDE_DIR=${AL_INCLUDE_DIR})
-
-message(AEC3_LIB = ${ECHO_LIBRARY})
 
 
 # 4.========================config配置========================

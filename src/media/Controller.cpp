@@ -98,6 +98,7 @@ void Controller::start(string fileName) {
 	audioPlayer = new AudioPlayer("", out_sample_rate);
 	int duration = pFormatCtx->duration / AV_TIME_BASE;//求出总时长
 	callBack(VIDEODURATION, duration*1000);
+	noMoreFrame = false;
 	thread grab{ &Controller::grabPkt, this };
 	thread video{ &Controller::videoThreadFunc, this };
 	thread audio{ &Controller::audioThreadFunc, this };
@@ -129,6 +130,20 @@ void Controller::seekVideo(long sec) {
 	cond.notify_one();
 }
 
+void Controller::pause() {
+	stopFlag = true;
+	//todo 待优化加锁
+	Sleep(100);
+}
+void Controller::reStart() {
+	stopFlag = false;
+	thread grab{ &Controller::grabPkt, this };
+	thread video{ &Controller::videoThreadFunc, this };
+	thread audio{ &Controller::audioThreadFunc, this };
+	audio.detach();
+	grab.detach();
+	video.detach();
+}
 
 void Controller::grabPkt() {
 	while (!stopFlag)
@@ -144,7 +159,9 @@ void Controller::grabPkt() {
 		ctxMux.unlock();
 		if (ret < 0) {
 			printf("read frame fail:%d\n", ret);
+			noMoreFrame = true;
 			lock.unlock();
+			callBack(VIDEOEND, 0);
 			return;
 		}
 		if (inputPkt->stream_index == audioIndex) {
@@ -172,7 +189,7 @@ void Controller::videoThreadFunc() {
 		}
 		Sleep(delay);
 		unique_lock<mutex> lock{ mux };
-		if (videoQue.size() >= 3) {
+		if (videoQue.size() >= 3 || noMoreFrame) {
 			AVPacket *pkt = videoQue.front();
 			videoQue.pop_front();
 			lock.unlock();
@@ -184,7 +201,7 @@ void Controller::videoThreadFunc() {
 				if (time == 0) time = videoTime;
 				if (videoTime - time > 500) {
 					time = videoTime;
-					callBack(PLAYPROGRESS, time);
+					if(!noMoreFrame) callBack(PLAYPROGRESS, time);
 				}
 				if (videoTime < audioTime && audioTime - videoTime > 30) {
 					faster = -1;
@@ -222,6 +239,9 @@ void Controller::videoThreadFunc() {
 		else {
 			lock.unlock();
 		}
+		if (videoQue.empty() && noMoreFrame) {
+			return;
+		}
 		
 	}
 }
@@ -237,7 +257,7 @@ void Controller::audioThreadFunc() {
 		
 		Sleep(sleep);
 		unique_lock<mutex> lock{ mux };
-		if (audioQue.size() >= 3) {
+		if (audioQue.size() >= 3 || noMoreFrame) {
 			AVPacket *pkt = audioQue.front();
 			audioQue.pop_front();
 			lock.unlock();
@@ -264,6 +284,7 @@ void Controller::audioThreadFunc() {
 		else {
 			lock.unlock();
 		}
+		if (noMoreFrame && audioQue.size() == 0) return;
 	}
 	free(audio_buf);
 }
